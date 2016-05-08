@@ -1,5 +1,7 @@
 import numpy as np
 import validations
+import math_func_utils as utils
+
 
 class RollingList(object):
   """A List that has a maximum number of indexes.

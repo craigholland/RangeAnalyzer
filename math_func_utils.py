@@ -32,7 +32,7 @@ def StDev(data_array, error_obj=None):
       mean = float(data_array[0])
       stdev = 0.0
 
-    return stdev, periods, mean
+    return stdev
   elif error_obj:
     return error_obj
   else:
@@ -83,7 +83,7 @@ def ReStDev(new_data, old_stdev, old_mean, old_periods, error_obj=None):
     else:
       return False
 
-    return new_stdev, new_periods, new_mean
+    return new_stdev
 
 def numberFormat(val, dec_places=2, error=(None, None)):
     error_obj, error_key = error[0], error[1]
@@ -95,7 +95,7 @@ def numberFormat(val, dec_places=2, error=(None, None)):
     else:
       error_obj.Add(error_key, ERRORMSG_RA_NUMFORMAT.format(val))
 
-def numberFormat_list(val, dec_places=None, error=(None, None)):
+def numberFormat_list(val, dec_places=2, error=(None, None)):
   if validations.isList(val) and validations.isNumeric(val):
-    return [x for numberFormat(x, dec_places, error)]
+    return [numberFormat(x, dec_places, error) for x in val]
 

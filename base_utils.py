@@ -1,5 +1,118 @@
 import numpy as np
 import validations
+import math_func_utils as utils
+import Error_collector
+from datetime import datetime as dt
+import pickle
+
+
+ALLOWED_RAWDATA_MARKET_VEHICLES = {
+  'GENERAL': ['GENERAL'],
+  'FOREX': ['EURUSD', 'USDJPY']
+  
+}
+
+ERRORKEY_RD = 'RAWDATA'
+ERRORMSG_RD_INITFAIL = 'Failed Initialization. Minimum requirement of valid data value.'
+ERRORMSG_RD_BADMARKET = 'Unexpected Market.'
+ERRORMSG_RD_BADVEHICLE = 'Unexpected Vehicle.'
+ERRORMSG_RD_INVDATE = "Invalid Date."
+ERRORMSG_RD_INVTIME = "Invalid Time."
+
+class RawData(object):
+  """Data structure for incoming raw data."""
+  NUMERIC_ONLY = True
+  DEFAULT_MARKET = 'GENERAL'
+  DEFAULT_VEHICLE = 'GENERAL'
+  
+  def __init__(self, value=None, market=None, vehicle=None, date_stamp=None, time_stamp=None):
+    self.valid_data = False
+    self.value = value
+    self.market = market
+    self.vehicle = vehicle
+    self.date_stamp = date_stamp
+    self.time_stamp = time_stamp
+    
+    self.initError()
+    self.insertDefaults()
+    self.valid_data = self.dataCheck()
+
+  def to_dict(self):
+    return{
+      'value': self.value,
+      'market': self.market,
+      'vehicle': self.vehicle,
+      'date_stamp': self.date_stamp,
+      'time_stamp': self.time_stamp
+    }
+  
+  def insertDefaults(self):
+    if self.market is None:
+      self.market = self.DEFAULT_MARKET
+    
+    if self.vehicle is None and self.market == self.DEFAULT_MARKET:
+      self.vehicle = self.DEFAULT_VEHICLE
+    
+    if self.date_stamp is None:
+      self.date_stamp = dt.now().date()
+          
+    if self.time_stamp is None:
+      self.time_stamp = dt.now().time()
+    
+  def valueCheck(self):
+    return not((self.NUMERIC_ONLY and not validations.isNumeric(self.value)) or self.value is None)
+  
+  def initError(self):
+    self._Error = Error_collector.Errors()
+
+  def dataCheck(self):
+    all_pass = True
+    self.initError()
+    if not self.valueCheck():
+      self._Error.Add(ERRORKEY_RD, ERRORMSG_RD_INITFAIL)
+      all_pass = False
+    
+    valid_market, valid_vehicle = False, False
+    for market, vehicle_list in ALLOWED_RAWDATA_MARKET_VEHICLES.iteritems():
+      if self.market == market:
+        valid_market = True
+        for vehicle in vehicle_list:
+          if self.vehicle == vehicle:
+            valid_vehicle = True
+                    
+    if not valid_market:
+      self._Error.Add(ERRORKEY_RD, ERRORMSG_RD_BADMARKET)
+      all_pass = False
+
+    if not valid_vehicle:
+      self._Error.Add(ERRORKEY_RD, ERRORMSG_RD_BADVEHICLE)
+      all_pass = False
+          
+    if not issubclass(type(self.date_stamp), type(dt.now().date())):
+      self._Error.Add(ERRORKEY_RD, ERRORMSG_RD_INVDATE)
+      all_pass = False
+
+    if not issubclass(type(self.time_stamp), type(dt.now().time())):
+      self._Error.Add(ERRORKEY_RD, ERRORMSG_RD_INVTIME)
+      all_pass = False
+    
+    return all_pass
+
+  def __repr__(self):
+    vals =  {
+      'value': self.value,
+      'market': self.market,
+      'vehicle': self.vehicle,
+      'date_stamp': self.date_stamp,
+      'time_stamp': self.time_stamp
+    }
+    return '<RawData {0}>'.format(vals)
+
+  @property
+  def isValid(self):
+    self.valid_data = self.dataCheck()
+    return self.valid_data
+
 
 class RollingList(object):
   """A List that has a maximum number of indexes.
@@ -196,10 +309,9 @@ class MovingAverage(RollingList):
       new_data = []
       for label, scope_factor in self._scopes.iteritems():
         if len(data_set) >= scope_factor and validations.isNumeric(data_set):
-          subset = data_set[-1 * scope_factor:]
-          avg = np.mean(subset)
+          avg = utils.numberFormat(np.mean(data_set[-1 * scope_factor:]), 4)
         else:
-          avg = "NA"
+          avg = 'NA'
         new_data.append((label, scope_factor, avg))
       self.Add(tuple(new_data))
 

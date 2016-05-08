@@ -21,6 +21,7 @@ ERRORMSG_RA_NUMFORMAT = 'Cannot format number: {0}'
 class RangeAnalysis(object):
   _RAW_DATA_MAX_LIMIT = 500
   _SUBLIST_MAX_LIMIT = 120
+  _MINIMUM_DATAPOINTS_FOR_STDEV = 10
 
   _VOLATILITY_INDEX = [
     ('Increasing', 1),
@@ -34,6 +35,12 @@ class RangeAnalysis(object):
   def __init__(self, input_list=None):
     self.error = Errors()
     self.base_error_key = ERRORKEY_RANGEANALYSIS
+    self.min_datapt_stdev = self._MINIMUM_DATAPOINTS_FOR_STDEV
+    self.datetime_required = True
+
+
+    self._RawData = butils.RollingList(err=(self.error, ERRORKEY_ROLLINGLIST_DATA))
+    self._RawData.SetLimit(self._RAW_DATA_MAX_LIMIT)
 
     self._raw_data = butils.RollingList(err=(self.error, ERRORKEY_ROLLINGLIST_DATA))
     self._raw_data.SetLimit(self._RAW_DATA_MAX_LIMIT)
@@ -165,6 +172,7 @@ class RangeAnalysis(object):
         return len(self._VOLATILITY_INDEX) - i
 
   def _Add(self, val):
+
     val = float(val)
     old_mean = self.mean if len(self.Mean) else 0
     self.Data.Add(val)
@@ -177,23 +185,26 @@ class RangeAnalysis(object):
     
     self.Movingaverage.AddData(self.Data)
     
-    # Second Order Ops.
+    # Second Order Opsb
     if len(self) > 1:
       if self.stdev:
         stdev = utils.ReStDev(val, self.stdev, self.mean, periods-1)
       else:
         stdev = utils.StDev(self.list)
-    elif len(self):
-      stdev = 0
+
     else:
       stdev = None
-    self.Stdev.Add(stdev)
+
+    if len(self) >= self.min_datapt_stdev:
+      self.Stdev.Add(utils.numberFormat(stdev,4))
 
     # Third Order Ops.
     sd_high = self.Stdev.high
     sd_low = self.Stdev.low
     percb = utils.numberFormat(self.Normalize(sd_low, sd_high, self.stdev), 4)
-    self.Percentb.Add(percb)
+
+    if len(self.Stdev.list) >= self.min_datapt_stdev:
+      self.Percentb.Add(percb)
 
   def Add(self, data):
     """Receives singular value or list/tuple of values to add to raw_data."""
